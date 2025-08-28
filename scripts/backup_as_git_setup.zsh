@@ -139,12 +139,12 @@ if [[ ! -d "$WORKDIR" ]]; then
 fi
 
 # Refresh index and commit any changes
-changes="$("${git_cmd[@]}" status --porcelain 2>/dev/null || true)"
+changes="$("${git_cmd[@]}" status --porcelain 2>/dev/null)"
 if [[ -n "$changes" ]]; then
-  "${git_cmd[@]}" add -A || {
+  if ! "${git_cmd[@]}" add -A; then
     print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: git add failed."
     exit 1
-  }
+  fi
   if ! "${git_cmd[@]}" commit -m "autocommit" >/dev/null 2>&1; then
     print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: git commit failed."
     exit 1
