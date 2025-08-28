@@ -96,7 +96,7 @@ fi
 
 if [[ -n "$IGNORE" ]]; then
   # Split IGNORE on semicolons and append patterns if not already present
-  for pat in ${(s:;:)IGNORE}; do
+  for pat in "${(@s:;:)IGNORE}"; do
     # Trim surrounding whitespace
     pat="${pat#"${pat%%[![:space:]]*}"}"
     pat="${pat%"${pat##*[![:space:]]}"}"
