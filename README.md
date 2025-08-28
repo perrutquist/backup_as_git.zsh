@@ -1,4 +1,4 @@
-# backup_as_git_setup.zsh - Back up a folder to an external Git repo
+# backup_as_git.zsh - Back up a folder to an external Git repo
 
 `backup_as_git_setup.zsh` is a setup script that creates an external Git repository for a given folder and installs a cron job to commit changes automatically every hour. 
 
