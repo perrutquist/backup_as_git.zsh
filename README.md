@@ -23,7 +23,7 @@ If `GITDIR` is inside `WORKDIR`, setup aborts with an error.
 
 ## Example
 
-  backup_as_git_setup.zsh proj ~/Projects/MyApp ~/.backups/myapp ".DS_Store;*.log;node_modules/;dist/"
+  backup_as_git_setup.zsh myapp ~/Projects/MyApp ~/.backups/myapp ".DS_Store;*.log;node_modules/;dist/"
 
 ## Note
 
