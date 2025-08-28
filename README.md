@@ -1,4 +1,4 @@
-# backup_as_git_setup.zsh - Back up a folder to an external Git repo
+# backup_as_git.zsh - Back up a folder to an external Git repo
 
 `backup_as_git_setup.zsh` is a setup script that creates an external Git repository for a given folder and installs a cron job to commit changes automatically every hour. 
 
@@ -22,8 +22,9 @@ If `GITDIR` is inside `WORKDIR`, setup aborts with an error.
 - IGNORE (optional): Semicolon-separated ignore patterns, e.g. `.DS_Store;*.tmp;node_modules/`.
 
 ## Example
-
-  backup_as_git_setup.zsh myapp ~/Projects/MyApp ~/.backups/myapp ".DS_Store;*.log;node_modules/;dist/"
+```zsh
+backup_as_git_setup.zsh myapp ~/Projects/MyApp ~/.backups/myapp ".DS_Store;*.log;node_modules/;dist/"
+```
 
 ## Note
 
