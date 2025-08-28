@@ -107,47 +107,6 @@ if [[ -n "$IGNORE" ]]; then
   done
 fi
 
-# Create run script that performs the backup commit
-run_script="$HOME/backup_${NAME}_as_git_run.zsh"
-cat >"$run_script" <<'RUNSCRIPT'
-#!/bin/zsh
-set -u
-
-NAME="@NAME@"
-WORKDIR="@WORKDIR@"
-GITDIR="@GITDIR@"
-
-git_cmd=(git --git-dir="$GITDIR/.git" --work-tree="$WORKDIR")
-
-# Verify repository exists
-if [[ ! -d "$GITDIR/.git" ]]; then
-  print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: repository not found at $GITDIR/.git"
-  exit 1
-fi
-
-# Ensure worktree directory exists
-if [[ ! -d "$WORKDIR" ]]; then
-  print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: WORKDIR missing: $WORKDIR"
-  exit 1
-fi
-
-# Refresh index and commit any changes
-changes="$("${git_cmd[@]}" status --porcelain 2>/dev/null || true)"
-if [[ -n "$changes" ]]; then
-  "${git_cmd[@]}" add -A || {
-    print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: git add failed."
-    exit 1
-  }
-  if ! "${git_cmd[@]}" commit -m "autocommit" >/dev/null 2>&1; then
-    print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: git commit failed."
-    exit 1
-  fi
-  print -- "[$(date '+%Y-%m-%d %H:%M:%S')] autocommit completed for $NAME"
-else
-  # No changes; remain quiet for cron
-  :
-fi
-RUNSCRIPT
 
 # Prepare placeholder values
 # Use printf %q to properly escape paths for zsh strings
