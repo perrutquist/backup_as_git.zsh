@@ -123,18 +123,23 @@ set -u
 NAME="@NAME@"
 WORKDIR="@WORKDIR@"
 GITDIR="@GITDIR@"
+ERROR_LOG="$HOME/backup_${NAME}_as_git_error.log"
 
 git_cmd=(git --git-dir="$GITDIR/.git" --work-tree="$WORKDIR")
 
+log_error() {
+  print -r -- "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >>"$ERROR_LOG"
+}
+
 # Verify repository exists
 if [[ ! -d "$GITDIR/.git" ]]; then
-  print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: repository not found at $GITDIR/.git"
+  log_error "Error: repository not found at $GITDIR/.git"
   exit 1
 fi
 
 # Ensure worktree directory exists
 if [[ ! -d "$WORKDIR" ]]; then
-  print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: WORKDIR missing: $WORKDIR"
+  log_error "Error: WORKDIR missing: $WORKDIR"
   exit 1
 fi
 
@@ -142,14 +147,13 @@ fi
 changes="$("${git_cmd[@]}" status --porcelain 2>/dev/null)"
 if [[ -n "$changes" ]]; then
   if ! "${git_cmd[@]}" add -A; then
-    print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: git add failed."
+    log_error "Error: git add failed."
     exit 1
   fi
   if ! "${git_cmd[@]}" commit -m "autocommit" >/dev/null 2>&1; then
-    print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: git commit failed."
+    log_error "Error: git commit failed."
     exit 1
-  }
-  print -- "[$(date '+%Y-%m-%d %H:%M:%S')] autocommit completed for $NAME"
+  fi
 else
   :
 fi
