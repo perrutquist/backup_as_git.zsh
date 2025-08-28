@@ -1,7 +1,7 @@
 #!/bin/zsh
 # backup_as_git_setup.zsh NAME WORKDIR GITDIR [IGNORE]
 # - Initializes a git repository at GITDIR (outside of WORKDIR), with an exclude file listing patterns from IGNORE (semicolon-separated).
-# - Creates $HOME/backup_${NAME}_as_git.zsh and $HOME/backup_${NAME}_as_git_run.zsh.
+# - Creates $HOME/backup_${NAME}_as_git.zsh.
 # - Adds the wrapper script to the user's crontab to run every hour.
 # - Prints a friendly message informing the user of what was done and how to modify the crontab.
 #
@@ -149,33 +149,60 @@ else
 fi
 RUNSCRIPT
 
-# Replace placeholders in the run script safely
+# Prepare placeholder values
 # Use printf %q to properly escape paths for zsh strings
 escaped_name="$NAME"
 escaped_workdir="$WORKDIR"
 escaped_gitdir="$GITDIR"
-
-# Inline replace placeholders
-tmp_run="$run_script.tmp.$$"
-sed \
-  -e "s|@NAME@|$escaped_name|g" \
-  -e "s|@WORKDIR@|$escaped_workdir|g" \
-  -e "s|@GITDIR@|$escaped_gitdir|g" \
-  "$run_script" > "$tmp_run" && mv "$tmp_run" "$run_script" || die "Failed to finalize run script."
-
-chmod 700 -- "$run_script" || die "Failed to chmod run script."
 
 # Create wrapper script that cron will call
 wrapper_script="$HOME/backup_${NAME}_as_git.zsh"
 cat >"$wrapper_script" <<'WRAPPERSCRIPT'
 #!/bin/zsh
 set -u
-exec "@RUN_SCRIPT@" "$@"
+
+NAME="@NAME@"
+WORKDIR="@WORKDIR@"
+GITDIR="@GITDIR@"
+
+git_cmd=(git --git-dir="$GITDIR/.git" --work-tree="$WORKDIR")
+
+# Verify repository exists
+if [[ ! -d "$GITDIR/.git" ]]; then
+  print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: repository not found at $GITDIR/.git"
+  exit 1
+fi
+
+# Ensure worktree directory exists
+if [[ ! -d "$WORKDIR" ]]; then
+  print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: WORKDIR missing: $WORKDIR"
+  exit 1
+fi
+
+# Refresh index and commit any changes
+changes="$("${git_cmd[@]}" status --porcelain 2>/dev/null || true)"
+if [[ -n "$changes" ]]; then
+  "${git_cmd[@]}" add -A || {
+    print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: git add failed."
+    exit 1
+  }
+  if ! "${git_cmd[@]}" commit -m "autocommit" >/dev/null 2>&1; then
+    print -ru2 -- "[$(date '+%Y-%m-%d %H:%M:%S')] Error: git commit failed."
+    exit 1
+  }
+  print -- "[$(date '+%Y-%m-%d %H:%M:%S')] autocommit completed for $NAME"
+else
+  :
+fi
 WRAPPERSCRIPT
 
-# Substitute path to run script
+# Substitute placeholders in wrapper script
 tmp_wrap="$wrapper_script.tmp.$$"
-sed -e "s|@RUN_SCRIPT@|$run_script|g" "$wrapper_script" > "$tmp_wrap" && mv "$tmp_wrap" "$wrapper_script" || die "Failed to finalize wrapper script."
+sed \
+  -e "s|@NAME@|$escaped_name|g" \
+  -e "s|@WORKDIR@|$escaped_workdir|g" \
+  -e "s|@GITDIR@|$escaped_gitdir|g" \
+  "$wrapper_script" > "$tmp_wrap" && mv "$tmp_wrap" "$wrapper_script" || die "Failed to finalize wrapper script."
 chmod 700 -- "$wrapper_script" || die "Failed to chmod wrapper script."
 
 # Add to crontab hourly if not already present
@@ -205,7 +232,6 @@ Setup complete.
 
 - Scripts:
     Wrapper: $wrapper_script
-    Runner : $run_script
 
 - Cron:
     $cron_line
