@@ -35,8 +35,9 @@ info() {
   print -- "$*"
 }
 
-# Ensure git is available
-command -v git >/dev/null 2>&1 || die "git is required but not found in PATH."
+# Ensure git is available and capture absolute path
+GIT_BIN="$(command -v git 2>/dev/null)"
+[[ -n "$GIT_BIN" ]] || die "git is required but not found in PATH."
 
 # Validate args
 if (( $# < 3 || $# > 4 )); then
@@ -113,6 +114,7 @@ fi
 escaped_name="$NAME"
 escaped_workdir="$WORKDIR"
 escaped_gitdir="$GITDIR"
+escaped_gitbin="$GIT_BIN"
 
 # Create wrapper script that cron will call
 backup_dir="$HOME/.backup_as_git"
@@ -122,12 +124,16 @@ cat >"$wrapper_script" <<'WRAPPERSCRIPT'
 #!/bin/zsh
 set -u
 
+# Minimal PATH for cron
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
 NAME="@NAME@"
 WORKDIR="@WORKDIR@"
 GITDIR="@GITDIR@"
 ERROR_LOG="$HOME/backup_${NAME}_as_git_error.log"
+GIT_BIN="@GIT_BIN@"
 
-git_cmd=(git --git-dir="$GITDIR/.git" --work-tree="$WORKDIR")
+git_cmd=("$GIT_BIN" -c core.hooksPath=/dev/null --git-dir="$GITDIR/.git" --work-tree="$WORKDIR")
 
 log_error() {
   print -r -- "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >>"$ERROR_LOG"
@@ -145,8 +151,21 @@ if [[ ! -d "$WORKDIR" ]]; then
   exit 1
 fi
 
+# Acquire lock to prevent overlapping runs
+lockdir="$GITDIR/.git/.backup_as_git.lock"
+if ! mkdir "$lockdir" 2>/dev/null; then
+  # Another instance is running; exit quietly
+  exit 0
+fi
+trap 'rmdir "$lockdir" 2>/dev/null' EXIT HUP INT TERM
+
 # Refresh index and commit any changes
-changes="$("${git_cmd[@]}" status --porcelain 2>/dev/null)"
+changes="$("${git_cmd[@]}" status --porcelain 2>&1)"
+status_rc=$?
+if (( status_rc != 0 )); then
+  log_error "Error: git status failed (exit $status_rc): $changes"
+  exit 1
+fi
 if [[ -n "$changes" ]]; then
   if ! "${git_cmd[@]}" add -A; then
     log_error "Error: git add failed."
@@ -167,6 +186,7 @@ sed \
   -e "s|@NAME@|$escaped_name|g" \
   -e "s|@WORKDIR@|$escaped_workdir|g" \
   -e "s|@GITDIR@|$escaped_gitdir|g" \
+  -e "s|@GIT_BIN@|$escaped_gitbin|g" \
   "$wrapper_script" > "$tmp_wrap" && mv "$tmp_wrap" "$wrapper_script" || die "Failed to finalize wrapper script."
 chmod 700 "$wrapper_script" || die "Failed to chmod wrapper script."
 
