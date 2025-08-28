@@ -22,8 +22,9 @@ If `GITDIR` is inside `WORKDIR`, setup aborts with an error.
 - IGNORE (optional): Semicolon-separated ignore patterns, e.g. `.DS_Store;*.tmp;node_modules/`.
 
 ## Example
-
-  backup_as_git_setup.zsh myapp ~/Projects/MyApp ~/.backups/myapp ".DS_Store;*.log;node_modules/;dist/"
+```zsh
+backup_as_git_setup.zsh myapp ~/Projects/MyApp ~/.backups/myapp ".DS_Store;*.log;node_modules/;dist/"
+```
 
 ## Note
 
