@@ -115,7 +115,9 @@ escaped_workdir="$WORKDIR"
 escaped_gitdir="$GITDIR"
 
 # Create wrapper script that cron will call
-wrapper_script="$HOME/backup_${NAME}_as_git.zsh"
+backup_dir="$HOME/.backup_as_git"
+mkdir -p "$backup_dir" || die "Failed to create backup scripts directory: $backup_dir"
+wrapper_script="$backup_dir/backup_${NAME}_as_git.zsh"
 cat >"$wrapper_script" <<'WRAPPERSCRIPT'
 #!/bin/zsh
 set -u
