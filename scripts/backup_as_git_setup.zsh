@@ -50,7 +50,7 @@ GITDIR_RAW="$3"
 IGNORE="${4:-}"
 
 # Validate NAME (restrict to safe filename characters)
-if [[ "$NAME" != [[:alnum:]_-]## ]]; then
+if [[ ! "$NAME" =~ ^[[:alnum:]_-]+$ ]]; then
   die "NAME must contain only letters, digits, underscores, or hyphens."
 fi
 
