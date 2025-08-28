@@ -71,7 +71,7 @@ if [[ "$GITDIR" == "$WORKDIR" || "$GITDIR" == "$WORKDIR"/* ]]; then
 fi
 
 # Prepare GITDIR and initialize repository if needed
-mkdir -p -- "$GITDIR" || die "Failed to create GITDIR: $GITDIR"
+mkdir -p "$GITDIR" || die "Failed to create GITDIR: $GITDIR"
 
 if [[ ! -d "$GITDIR/.git" ]]; then
   info "Initializing git repository at: $GITDIR"
@@ -82,8 +82,8 @@ fi
 
 # Write ignore patterns to .git/info/exclude (idempotent)
 exclude_file="$GITDIR/.git/info/exclude"
-mkdir -p -- "$GITDIR/.git/info" || die "Failed to create repo info dir."
-touch -- "$exclude_file" || die "Failed to create exclude file."
+mkdir -p "$GITDIR/.git/info" || die "Failed to create repo info dir."
+touch "$exclude_file" || die "Failed to create exclude file."
 
 # Add header once
 header="# Added by backup_as_git_setup.zsh for NAME=$NAME (WORKDIR=$WORKDIR)"
@@ -162,7 +162,7 @@ sed \
   -e "s|@WORKDIR@|$escaped_workdir|g" \
   -e "s|@GITDIR@|$escaped_gitdir|g" \
   "$wrapper_script" > "$tmp_wrap" && mv "$tmp_wrap" "$wrapper_script" || die "Failed to finalize wrapper script."
-chmod 700 -- "$wrapper_script" || die "Failed to chmod wrapper script."
+chmod 700 "$wrapper_script" || die "Failed to chmod wrapper script."
 
 # Add to crontab hourly if not already present
 cron_line="0 * * * * $wrapper_script >/dev/null 2>&1"
