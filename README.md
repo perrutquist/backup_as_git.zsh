@@ -1,6 +1,6 @@
 # backup_as_git.zsh - Back up a folder to an external Git repo
 
-`backup_as_git_setup.zsh` is a setup script that creates an external Git repository for a given folder and installs a cron job to commit changes automatically every hour. 
+`backup_as_git_setup.zsh` is a setup script that creates an external Git repository for a given folder and installs a launchd LaunchAgent on macOS (with cron fallback elsewhere) to commit changes automatically every hour.
 
 This script was mainly written by AI, but it works for me. I use this to backup some of my iCloud directories onto a Mac Mini, to give me access to the history of those directories.
 
@@ -9,8 +9,8 @@ This script was mainly written by AI, but it works for me. I use this to backup 
 Running `backup_as_git_setup.zsh NAME WORKDIR GITDIR [IGNORE]` will:
 - Initialize a Git repository at `GITDIR` (outside of `WORKDIR`), and write ignore patterns from `IGNORE` (semicolon-separated) to `GITDIR/.git/info/exclude`.
 - Create a wrapper script `~/backup_${NAME}_as_git.zsh`.
-- Add an hourly cron job that runs the wrapper.
-- Print a summary including how to view or modify your crontab.
+- On macOS, install a launchd LaunchAgent that runs the wrapper hourly (falls back to cron on other systems).
+- Print a summary including how to manage the LaunchAgent or crontab.
 
 If `GITDIR` is inside `WORKDIR`, setup aborts with an error.
 
