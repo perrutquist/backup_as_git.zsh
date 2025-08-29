@@ -2,8 +2,8 @@
 # backup_as_git_setup.zsh NAME WORKDIR GITDIR [IGNORE]
 # - Initializes a git repository at GITDIR (outside of WORKDIR), with an exclude file listing patterns from IGNORE (semicolon-separated).
 # - Creates $HOME/backup_${NAME}_as_git.zsh.
-# - Adds the wrapper script to the user's crontab to run every hour.
-# - Prints a friendly message informing the user of what was done and how to modify the crontab.
+# - On macOS, installs a launchd LaunchAgent to run the backup hourly (falls back to cron on other systems).
+# - Prints a friendly message informing the user of what was done and how to manage the LaunchAgent or cron entry.
 #
 # If GITDIR is inside WORKDIR, the setup aborts with an error.
 
@@ -190,14 +190,53 @@ sed \
   "$wrapper_script" > "$tmp_wrap" && mv "$tmp_wrap" "$wrapper_script" || die "Failed to finalize wrapper script."
 chmod 700 "$wrapper_script" || die "Failed to chmod wrapper script."
 
-# Add to crontab hourly if not already present
-cron_line="0 * * * * $wrapper_script >/dev/null 2>&1"
-if crontab -l 2>/dev/null | grep -Fq -- "$wrapper_script"; then
-  info "Cron entry already present for: $wrapper_script"
+# Install scheduler: launchd on macOS (fallback to cron)
+SCHEDULER_SUMMARY=""
+LAUNCHCTL_BIN="$(command -v launchctl 2>/dev/null)"
+if [[ "$(uname -s)" == "Darwin" && -n "$LAUNCHCTL_BIN" ]]; then
+  launch_agents_dir="$HOME/Library/LaunchAgents"
+  mkdir -p "$launch_agents_dir" || die "Failed to create LaunchAgents directory: $launch_agents_dir"
+  label="com.backup_as_git.${NAME}"
+  plist="$launch_agents_dir/$label.plist"
+  stdout_log="$HOME/Library/Logs/backup_${NAME}_as_git.out.log"
+  stderr_log="$HOME/Library/Logs/backup_${NAME}_as_git.err.log"
+  cat >"$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$label</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$wrapper_script</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>3600</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>$stdout_log</string>
+  <key>StandardErrorPath</key>
+  <string>$stderr_log</string>
+</dict>
+</plist>
+EOF
+  "$LAUNCHCTL_BIN" unload -w "$plist" >/dev/null 2>&1 || true
+  "$LAUNCHCTL_BIN" load -w "$plist" || die "Failed to load LaunchAgent: $plist"
+  info "Installed hourly launchd agent: $label"
+  SCHEDULER_SUMMARY=$'- LaunchAgent:\n    '"$plist"$'\n    Label: '"$label"$'\n    StartInterval: 3600\n\nTo manage:\n  launchctl list | grep -F '"$label"$'\n  launchctl unload -w '"$plist"$'\n  launchctl load -w '"$plist"$'\n\nLogs:\n  '"$stdout_log"$'\n  '"$stderr_log"
 else
-  # Preserve existing crontab; append our line
-  (crontab -l 2>/dev/null; print -- "$cron_line") | crontab - || die "Failed to install crontab entry."
-  info "Added hourly cron job."
+  # Add to crontab hourly if not already present
+  cron_line="0 * * * * $wrapper_script >/dev/null 2>&1"
+  if crontab -l 2>/dev/null | grep -Fq -- "$wrapper_script"; then
+    info "Cron entry already present for: $wrapper_script"
+  else
+    # Preserve existing crontab; append our line
+    (crontab -l 2>/dev/null; print -- "$cron_line") | crontab - || die "Failed to install crontab entry."
+    info "Added hourly cron job."
+  fi
+  SCHEDULER_SUMMARY=$'- Cron:\n    '"$cron_line"$'\n\nTo view or edit your crontab:\n  crontab -l\n  crontab -e\n\nTo remove the cron entry later, run:\n  crontab -l | grep -v "'"$wrapper_script"'" | crontab -'
 fi
 
 # Friendly summary
@@ -218,15 +257,7 @@ Setup complete.
 - Scripts:
     Wrapper: $wrapper_script
 
-- Cron:
-    $cron_line
-
-To view or edit your crontab:
-  crontab -l
-  crontab -e
-
-To remove the cron entry later, run:
-  crontab -l | grep -v "$wrapper_script" | crontab -
+$SCHEDULER_SUMMARY
 
 SUMMARY
 
