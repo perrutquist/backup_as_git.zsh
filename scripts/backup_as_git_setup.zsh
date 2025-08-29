@@ -168,7 +168,7 @@ if [[ -d "$lockdir" ]]; then
   if [[ -n "$mtime_epoch" ]]; then
     age_sec=$(( now_epoch - mtime_epoch ))
     if (( age_sec > 86400 )); then
-      rmdir "$lockdir" 2>/dev/null || rm -rf "$lockdir" 2>/dev/null
+      rmdir "$lockdir" 2>/dev/null
     fi
   fi
 fi
