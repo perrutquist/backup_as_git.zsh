@@ -151,8 +151,28 @@ if [[ ! -d "$WORKDIR" ]]; then
   exit 1
 fi
 
-# Acquire lock to prevent overlapping runs
+# Acquire lock to prevent overlapping runs (treat >24h locks as stale)
 lockdir="$GITDIR/.git/.backup_as_git.lock"
+
+# If a lock exists and is older than 24 hours, consider it stale and remove it
+if [[ -d "$lockdir" ]]; then
+  now_epoch="$(date +%s)"
+  # Try macOS/BSD stat first, then GNU coreutils
+  if mtime_epoch="$(stat -f %m "$lockdir" 2>/dev/null)"; then
+    :
+  elif mtime_epoch="$(stat -c %Y "$lockdir" 2>/dev/null)"; then
+    :
+  else
+    mtime_epoch=""
+  fi
+  if [[ -n "$mtime_epoch" ]]; then
+    age_sec=$(( now_epoch - mtime_epoch ))
+    if (( age_sec > 86400 )); then
+      rmdir "$lockdir" 2>/dev/null || rm -rf "$lockdir" 2>/dev/null
+    fi
+  fi
+fi
+
 if ! mkdir "$lockdir" 2>/dev/null; then
   # Another instance is running; exit quietly
   exit 0
